@@ -1,0 +1,6 @@
+@meerkatplace_HostAddress = http://localhost:5291
+
+GET {{meerkatplace_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
