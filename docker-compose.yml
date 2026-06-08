@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  api-gateway:
+    build: ./src/ApiGateway
+    ports:
+      - "8080:80"
+    depends_on:
+      - user-service
+      - listing-service
+      - order-service
+      - payment-service
+
+  user-service:
+    build: ./src/UserService/UserService.API
+    ports:
+      - "5001:80"
+
+  listing-service:
+    build: ./src/ListingService/ListingService.API
+    ports:
+      - "5002:80"
+
+  order-service:
+    build: ./src/OrderService/OrderService.API
+    ports:
+      - "5003:80"
+
+  payment-service:
+    build: ./src/PaymentService/PaymentService.API
+    ports:
+      - "5004:80"
+
