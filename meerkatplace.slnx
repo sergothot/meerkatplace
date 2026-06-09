@@ -1,3 +1,21 @@
 <Solution>
-  <Project Path="meerkatplace/meerkatplace.csproj" />
+  <Folder Name="/src/Common/">
+    <Project Path="src/Common/Shared/Shared.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/">
+    <Project Path="src/Services/UserService/UserService.API/UserService.API.csproj" />
+    <Project Path="src/Services/ListingService/ListingService.API/ListingService.API.csproj" />
+    <Project Path="src/Services/OrderService/OrderService.API/OrderService.API.csproj" />
+    <Project Path="src/Services/PaymentService/PaymentService.API/PaymentService.API.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/ApiGateway/ApiGateway.csproj" />
+  </Folder>
+  <Folder Name="/tests/" />
+  <Folder Name="/tests/Services/">
+    <Project Path="tests/Services/UserService/UserService.UnitTests/UserService.UnitTests.csproj" />
+    <Project Path="tests/Services/ListingService/ListingService.UnitTests/ListingService.UnitTests.csproj" />
+    <Project Path="tests/Services/OrderService/OrderService.UnitTests/OrderService.UnitTests.csproj" />
+    <Project Path="tests/Services/PaymentService/PaymentService.UnitTests/PaymentService.UnitTests.csproj" />
+  </Folder>
 </Solution>
