@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text;
 using UserService.API.Application.Auth;
+using UserService.API.Domain.Enums;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddOpenApi();
@@ -55,7 +56,7 @@ app.MapPost("/auth/register", (RegisterRequest request) =>
         Guid.NewGuid(),
         request.Login,
         request.Email,
-        new[] { "Buyer" },
+        new[] { UserRole.Buyer },
         now,
         HashPassword(request.Password));
 

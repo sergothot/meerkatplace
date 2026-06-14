@@ -1,6 +1,8 @@
 services:
   api-gateway:
-    build: ./src/ApiGateway
+    build:
+      context: ./src
+      dockerfile: ApiGateway/Dockerfile
     ports:
       - "8080:8080"
     environment:
@@ -13,7 +15,9 @@ services:
       - payment-service
 
   user-service:
-    build: ./src/Services/UserService/UserService.API
+    build:
+      context: ./src
+      dockerfile: Services/UserService/UserService.API/Dockerfile
     ports:
       - "5001:8080"
     environment:
@@ -21,7 +25,9 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
 
   listing-service:
-    build: ./src/Services/ListingService/ListingService.API
+    build:
+      context: ./src
+      dockerfile: Services/ListingService/ListingService.API/Dockerfile
     ports:
       - "5002:8080"
     environment:
@@ -29,7 +35,9 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
 
   order-service:
-    build: ./src/Services/OrderService/OrderService.API
+    build:
+      context: ./src
+      dockerfile: Services/OrderService/OrderService.API/Dockerfile
     ports:
       - "5003:8080"
     environment:
@@ -37,7 +45,9 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
 
   payment-service:
-    build: ./src/Services/PaymentService/PaymentService.API
+    build:
+      context: ./src
+      dockerfile: Services/PaymentService/PaymentService.API/Dockerfile
     ports:
       - "5004:8080"
     environment:

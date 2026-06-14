@@ -1,3 +1,5 @@
+using UserService.API.Domain.Enums;
+
 namespace UserService.API.Application.Auth;
 
 public record RegisterRequest(string Login, string Email, string Password);
@@ -10,14 +12,14 @@ public record RegisterResponse(
     Guid Id,
     string Login,
     string Email,
-    IReadOnlyList<string> Roles,
+    IReadOnlyList<UserRole> Roles,
     DateTimeOffset CreatedAt);
 
 public record AuthUserDto(
     Guid Id,
     string Login,
     string Email,
-    IReadOnlyList<string> Roles);
+    IReadOnlyList<UserRole> Roles);
 
 public record AuthResponse(
     string AccessToken,
@@ -29,6 +31,6 @@ public record AuthUser(
     Guid Id,
     string Login,
     string Email,
-    IReadOnlyList<string> Roles,
+    IReadOnlyList<UserRole> Roles,
     DateTimeOffset CreatedAt,
     string PasswordHash);
