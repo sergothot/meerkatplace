@@ -1,5 +1,6 @@
-namespace OrderService.API.Domain.Entities;
 using Common.Shared.Domain.Enums;
+
+namespace OrderService.API.Domain.Entities;
 public class CartItem
 {
     public Guid Id { get; init; } = Guid.NewGuid();

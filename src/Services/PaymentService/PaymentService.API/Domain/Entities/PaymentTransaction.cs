@@ -1,6 +1,7 @@
-namespace PaymentService.API.Domain.Entities;
-using PaymentService.API.Domain.Enums;
 using Common.Shared.Domain.Enums;
+using PaymentService.API.Domain.Enums;
+
+namespace PaymentService.API.Domain.Entities;
 
 public class PaymentTransaction
 {

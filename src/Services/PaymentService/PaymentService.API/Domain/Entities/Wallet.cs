@@ -1,5 +1,6 @@
-namespace PaymentService.API.Domain.Entities;
 using Common.Shared.Domain.Enums;
+
+namespace PaymentService.API.Domain.Entities;
 
 public class Wallet
 {

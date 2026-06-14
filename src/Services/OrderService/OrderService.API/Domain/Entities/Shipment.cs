@@ -1,5 +1,6 @@
-namespace OrderService.API.Domain.Entities;
 using OrderService.API.Domain.Enums;
+
+namespace OrderService.API.Domain.Entities;
 public class Shipment
 {
     public Guid Id { get; init; } = Guid.NewGuid();

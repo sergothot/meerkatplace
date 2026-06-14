@@ -1,6 +1,7 @@
-namespace ListingService.API.Domain.Entities;
 using Common.Shared.Domain.Enums;
 using ListingService.API.Domain.Enums;
+
+namespace ListingService.API.Domain.Entities;
 
 public class Product
 {
