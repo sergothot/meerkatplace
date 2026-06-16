@@ -13,6 +13,7 @@ public class UserDbContext : DbContext
     public DbSet<BuyerProfile> BuyerProfiles => Set<BuyerProfile>();
     public DbSet<SellerProfile> SellerProfiles => Set<SellerProfile>();
     public DbSet<Address> Addresses => Set<Address>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -49,5 +50,12 @@ public class UserDbContext : DbContext
         modelBuilder.Entity<User>()
             .HasIndex(u => u.Login)
             .IsUnique();
+
+        modelBuilder.Entity<RefreshToken>()
+            .HasIndex(r => r.Token)
+            .IsUnique();
+
+        modelBuilder.Entity<RefreshToken>()
+            .HasIndex(r => r.UserId);
     }
 }

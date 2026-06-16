@@ -9,4 +9,5 @@ public class User
     public string Email { get; set; } = string.Empty;
     public List<UserRole> Roles { get; set; } = new();
     public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.UtcNow;
+    public string PasswordHash { get; set; } = string.Empty;
 }

@@ -26,11 +26,3 @@ public record AuthResponse(
     string RefreshToken,
     int ExpiresIn,
     AuthUserDto User);
-
-public record AuthUser(
-    Guid Id,
-    string Login,
-    string Email,
-    IReadOnlyList<UserRole> Roles,
-    DateTimeOffset CreatedAt,
-    string PasswordHash);
