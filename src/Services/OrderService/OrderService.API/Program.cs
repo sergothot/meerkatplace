@@ -1,9 +1,19 @@
 using System.Collections.Concurrent;
+using Microsoft.EntityFrameworkCore;
 using OrderService.API.Application.Ordering;
+using OrderService.API.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddOpenApi();
+builder.Services.AddDbContext<OrderDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<OrderDbContext>();
+    await db.Database.EnsureCreatedAsync();
+}
 
 var carts = new ConcurrentDictionary<Guid, CartState>();
 var orders = new ConcurrentDictionary<Guid, OrderState>();

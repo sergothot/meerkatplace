@@ -1,9 +1,19 @@
 using System.Collections.Concurrent;
+using Microsoft.EntityFrameworkCore;
 using PaymentService.API.Application.Payments;
+using PaymentService.API.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddOpenApi();
+builder.Services.AddDbContext<PaymentDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<PaymentDbContext>();
+    await db.Database.EnsureCreatedAsync();
+}
 
 var payments = new ConcurrentDictionary<Guid, PaymentState>();
 var wallets = new ConcurrentDictionary<Guid, WalletDto>();
