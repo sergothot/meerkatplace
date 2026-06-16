@@ -24,6 +24,9 @@ services:
       - ASPNETCORE_URLS=http://+:8080
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__DefaultConnection=Host=user-db;Port=5432;Database=userservice;Username=postgres;Password=postgres
+      - Jwt__Key=dev-only-secret-key-min-32-chars-long!!
+      - Jwt__Issuer=meerkatplace-user-service
+      - Jwt__Audience=meerkatplace
     depends_on:
       user-db:
         condition: service_healthy
