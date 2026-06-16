@@ -1,12 +1,22 @@
 using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.EntityFrameworkCore;
 using UserService.API.Application.Auth;
 using UserService.API.Domain.Enums;
+using UserService.API.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddOpenApi();
+builder.Services.AddDbContext<UserDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<UserDbContext>();
+    await db.Database.EnsureCreatedAsync();
+}
 
 var usersByEmail = new ConcurrentDictionary<string, AuthUser>(StringComparer.OrdinalIgnoreCase);
 var usersByLogin = new ConcurrentDictionary<string, AuthUser>(StringComparer.OrdinalIgnoreCase);
