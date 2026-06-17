@@ -1,5 +1,4 @@
-namespace PaymentService.API.Domain.Enums;
-
+namespace Common.Shared.Domain.Enums;
 public enum PaymentMethod
 {
     Wallet = 1,

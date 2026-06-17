@@ -1,4 +1,4 @@
-using UserService.API.Domain.Enums;
+using Common.Shared.Domain.Enums;
 
 namespace UserService.API.Domain.Entities;
 
