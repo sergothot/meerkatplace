@@ -20,5 +20,4 @@ public sealed record CheckoutDTO(
     Currency Currency,
     bool RequiresPayment,
 
-    [EnumDataType(typeof(PaymentMethod), ErrorMessage = "PaymentMethod is required.")]
-    PaymentMethod PaymentMethod);
+    string PaymentMethod);

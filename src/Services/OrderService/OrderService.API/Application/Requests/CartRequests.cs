@@ -6,4 +6,4 @@ public sealed record AddCartItemRequest(Guid ProductId, int Quantity, decimal Un
 
 public sealed record UpdateCartItemRequest(int Quantity);
 
-public sealed record CheckoutRequest(Guid AddressId, PaymentMethod PaymentMethod);
+public sealed record CheckoutRequest(Guid AddressId, string PaymentMethod);
