@@ -19,5 +19,4 @@ public sealed record CheckoutDTO(
     [EnumDataType(typeof(Currency), ErrorMessage = "Currency must be a 3-5 character ISO-like code.")]
     Currency Currency,
     bool RequiresPayment,
-
     string PaymentMethod);
