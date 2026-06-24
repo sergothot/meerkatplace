@@ -1,12 +1,7 @@
 using System.Collections.Concurrent;
 using Microsoft.EntityFrameworkCore;
-using OrderService.API.Application.DTOs;
+using OrderService.API.Application.Ordering;
 using OrderService.API.Infrastructure.Persistence;
-using OrderService.API.Application.States;
-using OrderService.API.Application.Requests;
-using OrderService.API.Domain.Enums;
-using OrderService.API.Domain.Entities;
-using Common.Shared.Domain.Enums;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddOpenApi();
@@ -140,9 +135,9 @@ app.MapPost("/cart/checkout", (HttpContext httpContext, CheckoutRequest request)
     var order = new OrderState
     {
         BuyerId = buyerId,
-        OrderStatus = OrderStatus.Placed,
+        Status = "Placed",
         Amount = cart.Items.Sum(i => i.Quantity * i.UnitPrice),
-        Currency = Enum.Parse<Currency>(currency[0], ignoreCase: true),
+        Currency = currency.SingleOrDefault() ?? "RUB",
         Items = cart.Items.Select(ToCartItemDto).ToList()
     };
 
@@ -151,7 +146,7 @@ app.MapPost("/cart/checkout", (HttpContext httpContext, CheckoutRequest request)
 
     return Results.Created($"/orders/{order.OrderId}", new CheckoutResponse(
         order.OrderId,
-        order.OrderStatus,
+        order.Status,
         order.Amount,
         order.Currency,
         RequiresPayment: true));
@@ -163,7 +158,7 @@ app.MapGet("/orders", (HttpContext httpContext) =>
     var buyerOrders = orders.Values
         .Where(o => o.BuyerId == buyerId)
         .OrderByDescending(o => o.CreatedAt)
-        .Select(o => new OrderDTO(o.OrderId, o.OrderStatus, o.Amount, o.Currency, o.CreatedAt))
+        .Select(o => new OrderSummaryDto(o.OrderId, o.Status, o.Amount, o.Currency, o.CreatedAt))
         .ToList();
 
     return Results.Ok(buyerOrders);
@@ -180,7 +175,7 @@ app.MapGet("/orders/{orderId:guid}", (HttpContext httpContext, Guid orderId) =>
     return Results.Ok(new OrderDetailsDto(
         order.OrderId,
         order.BuyerId,
-        order.OrderStatus,
+        order.Status,
         order.Amount,
         order.Currency,
         order.CreatedAt,
@@ -195,7 +190,7 @@ app.MapGet("/orders/{orderId:guid}/status", (HttpContext httpContext, Guid order
         return Results.NotFound();
     }
 
-    return Results.Ok(new { orderId = order.OrderId, status = order.OrderStatus });
+    return Results.Ok(new { orderId = order.OrderId, status = order.Status });
 });
 
 app.MapPost("/orders/{orderId:guid}/cancel", (HttpContext httpContext, Guid orderId) =>
@@ -206,7 +201,7 @@ app.MapPost("/orders/{orderId:guid}/cancel", (HttpContext httpContext, Guid orde
         return Results.NotFound();
     }
 
-    if (order.OrderStatus is OrderStatus.Paid or OrderStatus.Fulfilled or OrderStatus.Completed)
+    if (order.Status is "Paid" or "Fulfilled" or "Completed")
     {
         return Results.UnprocessableEntity(new
         {
@@ -218,8 +213,8 @@ app.MapPost("/orders/{orderId:guid}/cancel", (HttpContext httpContext, Guid orde
         });
     }
 
-    order.OrderStatus = OrderStatus.Cancelled;
-    return Results.Ok(new { orderId = order.OrderId, status = order.OrderStatus });
+    order.Status = "Cancelled";
+    return Results.Ok(new { orderId = order.OrderId, status = order.Status });
 });
 
 app.MapGet("/orders/{orderId:guid}/shipments", (HttpContext httpContext, Guid orderId) =>
@@ -243,22 +238,22 @@ static Guid ResolveBuyerId(HttpContext httpContext)
         : Guid.Parse("11111111-1111-1111-1111-111111111111");
 }
 
-static CartDTO ToCartDto(CartState cart)
+static CartDto ToCartDto(CartState cart)
 {
     var items = cart.Items.Select(ToCartItemDto).ToList();
-    var currency = items.Select(i => i.Currency).FirstOrDefault();
+    var currency = items.Select(i => i.Currency).FirstOrDefault() ?? "RUB";
     var total = items.Sum(i => i.LineTotal);
 
-    return new CartDTO(cart.CartId, cart.BuyerId, items, total, currency);
+    return new CartDto(cart.CartId, cart.BuyerId, items, total, currency);
 }
 
-static CartItemDTO ToCartItemDto(CartItemState item)
+static CartItemDto ToCartItemDto(CartItemState item)
 {
-    return new CartItemDTO(
+    return new CartItemDto(
         item.ItemId,
         item.ProductId,
         item.Quantity,
         item.UnitPrice,
         item.Quantity * item.UnitPrice,
-        Enum.Parse<Currency>(item.Currency, ignoreCase: true));
+        item.Currency);
 }

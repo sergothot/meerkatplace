@@ -1,4 +1,4 @@
-namespace Common.Shared.Domain.Enums;
+namespace ListingService.API.Domain.Enums;
 
 public enum DeliveryType
 {
