@@ -12,6 +12,9 @@
     <Project Path="src/ApiGateway/ApiGateway.csproj" />
   </Folder>
   <Folder Name="/tests/" />
+  <Folder Name="/tests/Integration/">
+    <Project Path="tests/Integration/Marketplace.IntegrationTests/Marketplace.IntegrationTests.csproj" />
+  </Folder>
   <Folder Name="/tests/Services/">
     <Project Path="tests/Services/UserService/UserService.UnitTests/UserService.UnitTests.csproj" />
     <Project Path="tests/Services/ListingService/ListingService.UnitTests/ListingService.UnitTests.csproj" />
