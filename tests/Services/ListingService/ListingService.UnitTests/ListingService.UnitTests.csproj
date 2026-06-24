@@ -18,4 +18,8 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\src\Services\ListingService\ListingService.API\ListingService.API.csproj" />
+  </ItemGroup>
+
 </Project>
