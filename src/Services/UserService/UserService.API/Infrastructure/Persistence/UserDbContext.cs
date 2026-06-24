@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using UserService.API.Domain.Entities;
 using UserService.API.Domain.Enums;
@@ -24,9 +25,16 @@ public class UserDbContext : DbContext
                   .ToList()
         );
 
+        var rolesComparer = new ValueComparer<List<UserRole>>(
+            (left, right) => left!.SequenceEqual(right!),
+            value => value.Aggregate(0, (hash, role) => HashCode.Combine(hash, (int)role)),
+            value => value.ToList()
+        );
+
         modelBuilder.Entity<User>()
             .Property(u => u.Roles)
-            .HasConversion(rolesConverter);
+            .HasConversion(rolesConverter)
+            .Metadata.SetValueComparer(rolesComparer);
 
         modelBuilder.Entity<BuyerProfile>()
             .HasIndex(b => b.UserId)
