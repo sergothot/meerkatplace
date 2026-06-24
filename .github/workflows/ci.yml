@@ -29,8 +29,47 @@ jobs:
       - name: Build
         run: dotnet build meerkatplace.slnx --configuration Release --no-restore
 
+      - name: Start dependencies for integration tests
+        run: docker compose up -d --build
+
+      - name: Wait for services to be healthy
+        run: |
+          endpoints=(
+            "http://localhost:8080/health"
+            "http://localhost:5001/health"
+            "http://localhost:5002/health"
+            "http://localhost:5003/health"
+            "http://localhost:5004/health"
+          )
+
+          for endpoint in "${endpoints[@]}"; do
+            echo "Checking $endpoint"
+            for attempt in {1..90}; do
+              if curl --fail --silent --show-error "$endpoint" > /dev/null; then
+                echo "Healthy: $endpoint"
+                break
+              fi
+
+              if [[ "$attempt" -eq 90 ]]; then
+                echo "Timed out waiting for $endpoint"
+                docker compose ps
+                exit 1
+              fi
+
+              sleep 2
+            done
+          done
+
       - name: Test
         run: dotnet test meerkatplace.slnx --configuration Release --no-build --verbosity normal
+
+      - name: Print Docker logs on failure
+        if: failure()
+        run: docker compose logs --no-color
+
+      - name: Stop Docker Compose
+        if: always()
+        run: docker compose down -v --remove-orphans
 
   docker-build:
     name: Docker Build (${{ matrix.service }})
