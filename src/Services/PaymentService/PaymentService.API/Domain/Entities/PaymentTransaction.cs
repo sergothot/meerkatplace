@@ -12,4 +12,34 @@ public class PaymentTransaction
     public PaymentMethod PaymentMethod { get; set; }
     public PaymentStatus Status { get; set; } = PaymentStatus.Pending;
     public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.UtcNow;
+
+    public void MarkSucceeded()
+    {
+        if (Status != PaymentStatus.Pending)
+        {
+            throw new InvalidOperationException("Only pending payments can be marked succeeded.");
+        }
+
+        Status = PaymentStatus.Succeeded;
+    }
+
+    public void MarkFailed()
+    {
+        if (Status != PaymentStatus.Pending)
+        {
+            throw new InvalidOperationException("Only pending payments can be marked failed.");
+        }
+
+        Status = PaymentStatus.Failed;
+    }
+
+    public void MarkRefunded()
+    {
+        if (Status != PaymentStatus.Succeeded)
+        {
+            throw new InvalidOperationException("Only succeeded payments can be refunded.");
+        }
+
+        Status = PaymentStatus.Refunded;
+    }
 }

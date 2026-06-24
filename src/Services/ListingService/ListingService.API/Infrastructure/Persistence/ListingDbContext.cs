@@ -1,3 +1,4 @@
+using MassTransit;
 using ListingService.API.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,6 +10,7 @@ public class ListingDbContext : DbContext
 
     public DbSet<Product> Products => Set<Product>();
     public DbSet<InventoryStock> InventoryStocks => Set<InventoryStock>();
+    public DbSet<StockReservation> StockReservations => Set<StockReservation>();
     public DbSet<Review> Reviews => Set<Review>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -24,11 +26,23 @@ public class ListingDbContext : DbContext
             .HasIndex(s => s.ProductId)
             .IsUnique();
 
+        modelBuilder.Entity<StockReservation>()
+            .HasIndex(r => r.OrderId)
+            .IsUnique();
+
+        modelBuilder.Entity<StockReservation>()
+            .Property(r => r.FailureReason)
+            .HasMaxLength(512);
+
         modelBuilder.Entity<Review>()
             .HasIndex(r => new { r.ProductId, r.BuyerId })
             .IsUnique();
 
         modelBuilder.Entity<Review>()
             .HasIndex(r => r.SellerId);
+
+        modelBuilder.AddInboxStateEntity();
+        modelBuilder.AddOutboxMessageEntity();
+        modelBuilder.AddOutboxStateEntity();
     }
 }

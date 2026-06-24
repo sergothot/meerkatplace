@@ -18,4 +18,8 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\src\Services\PaymentService\PaymentService.API\PaymentService.API.csproj" />
+  </ItemGroup>
+
 </Project>

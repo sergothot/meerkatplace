@@ -1,3 +1,4 @@
+using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using OrderService.API.Domain.Entities;
 
@@ -12,6 +13,7 @@ public class OrderDbContext : DbContext
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
     public DbSet<Shipment> Shipments => Set<Shipment>();
+    public DbSet<ProcessedIntegrationMessage> ProcessedIntegrationMessages => Set<ProcessedIntegrationMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -48,5 +50,21 @@ public class OrderDbContext : DbContext
 
         modelBuilder.Entity<Shipment>()
             .HasIndex(s => s.OrderId);
+
+        modelBuilder.Entity<ProcessedIntegrationMessage>()
+            .HasIndex(x => x.MessageId)
+            .IsUnique();
+
+        modelBuilder.Entity<ProcessedIntegrationMessage>()
+            .Property(x => x.MessageId)
+            .HasMaxLength(128);
+
+        modelBuilder.Entity<ProcessedIntegrationMessage>()
+            .Property(x => x.Consumer)
+            .HasMaxLength(128);
+
+        modelBuilder.AddInboxStateEntity();
+        modelBuilder.AddOutboxMessageEntity();
+        modelBuilder.AddOutboxStateEntity();
     }
 }
