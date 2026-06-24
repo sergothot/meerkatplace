@@ -1,78 +1,72 @@
+using Common.Shared.Application.Interfaces;
+using ListingService.API.Application.Abstractions;
 using ListingService.API.Application.Catalog;
+using ListingService.API.Integration.Consumers;
 using ListingService.API.Infrastructure.Persistence;
+using ListingService.API.Infrastructure.Repositories;
+using MassTransit;
+using ListingService.API.Presentation.Endpoints;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddOpenApi();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 builder.Services.AddDbContext<ListingDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddScoped<IProductRepository, ProductRepository>();
+builder.Services.AddScoped<IInventoryStockRepository, InventoryStockRepository>();
+builder.Services.AddScoped<IStockReservationRepository, StockReservationRepository>();
+builder.Services.AddScoped<IUnitOfWork, ListingUnitOfWork>();
+builder.Services.AddScoped<IProductQueryService, DbProductQueryService>();
+builder.Services.AddScoped<IProductCommandService, DbProductCommandService>();
+
+builder.Services.AddMassTransit(cfg =>
+{
+    cfg.AddEntityFrameworkOutbox<ListingDbContext>(o =>
+    {
+        o.UsePostgres();
+        o.UseBusOutbox();
+    });
+
+    cfg.AddConsumer<CheckoutRequestedConsumer>();
+    cfg.AddConsumer<ReleaseStockRequestedConsumer>();
+
+    cfg.UsingRabbitMq((context, busCfg) =>
+    {
+        var host = builder.Configuration["RabbitMq:Host"] ?? "localhost";
+        var username = builder.Configuration["RabbitMq:Username"] ?? "guest";
+        var password = builder.Configuration["RabbitMq:Password"] ?? "guest";
+
+        busCfg.Host(host, "/", h =>
+        {
+            h.Username(username);
+            h.Password(password);
+        });
+
+        busCfg.ConfigureEndpoints(context);
+    });
+});
+
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ListingDbContext>();
-    await db.Database.EnsureCreatedAsync();
+    await db.Database.MigrateAsync();
 }
-var products = new List<ProductDto>();
 
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.UseSwagger();
+    app.UseSwaggerUI(options =>
+    {
+        options.RoutePrefix = "docs";
+        options.SwaggerEndpoint("/swagger/v1/swagger.json", "Listing Service API v1");
+    });
 }
 
-app.MapGet("/", () => "Hello World!");
-app.MapGet("/health", () => Results.Ok(new { status = "ok", service = "listing-service" }));
-app.MapGet("/products", (
-    string? q,
-    decimal? minPrice,
-    decimal? maxPrice,
-    string? currency,
-    string? deliveryType) =>
-{
-    var filter = new ProductFilter(q, minPrice, maxPrice, currency, deliveryType);
-    var errors = CatalogRequestValidator.ValidateFilter(filter);
-    if (errors.Count > 0)
-    {
-        return Results.ValidationProblem(errors);
-    }
-
-    IEnumerable<ProductDto> query = products;
-
-    if (!string.IsNullOrWhiteSpace(filter.Query))
-    {
-        query = query.Where(p =>
-            p.Name.Contains(filter.Query, StringComparison.OrdinalIgnoreCase) ||
-            p.Description.Contains(filter.Query, StringComparison.OrdinalIgnoreCase));
-    }
-
-    if (filter.MinPrice.HasValue)
-    {
-        query = query.Where(p => p.Price >= filter.MinPrice.Value);
-    }
-
-    if (filter.MaxPrice.HasValue)
-    {
-        query = query.Where(p => p.Price <= filter.MaxPrice.Value);
-    }
-
-    if (!string.IsNullOrWhiteSpace(filter.Currency))
-    {
-        query = query.Where(p =>
-            string.Equals(p.Currency, filter.Currency, StringComparison.OrdinalIgnoreCase));
-    }
-
-    if (!string.IsNullOrWhiteSpace(filter.DeliveryType))
-    {
-        query = query.Where(p =>
-            string.Equals(p.DeliveryType, filter.DeliveryType, StringComparison.OrdinalIgnoreCase));
-    }
-
-    return Results.Ok(query.ToList());
-});
-app.MapGet("/products/{id:guid}", (Guid id) =>
-{
-    var product = products.FirstOrDefault(p => p.Id == id);
-    return product is null ? Results.NotFound() : Results.Ok(product);
-});
+app.MapListingEndpoints();
 
 app.Run();
