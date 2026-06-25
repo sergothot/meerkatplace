@@ -158,7 +158,7 @@ static string GetGatewayDemoHtml()
 	<ol>
 		<li>Register + Login via <code>/api/v1/auth/*</code> to get access token.</li>
 		<li>Create product via <code>/api/v1/listing/products</code>.</li>
-		<li>Add cart item + checkout via <code>/api/v1/order/cart/*</code> with <code>X-User-Id</code>.</li>
+		<li>Add cart item + checkout via <code>/api/v1/order/cart/*</code> with bearer token.</li>
 		<li>Poll order status via <code>/api/v1/order/orders/{orderId}/status</code>.</li>
 		<li>View shipment via <code>/api/v1/order/orders/{orderId}/shipments</code>.</li>
 	</ol>
@@ -171,7 +171,6 @@ static string GetGatewayDemoHtml()
 }</pre>
 
 	<pre>{
-  "sellerId": "11111111-1111-1111-1111-111111111111",
   "name": "Demo Mouse",
   "description": "Demo product for walkthrough",
   "price": 1499.99,
@@ -182,9 +181,7 @@ static string GetGatewayDemoHtml()
 
 	<pre>{
   "productId": "{productId}",
-  "quantity": 1,
-  "unitPrice": 1499.99,
-  "currency": "RUB"
+	"quantity": 1
 }</pre>
 
 	<pre>{
