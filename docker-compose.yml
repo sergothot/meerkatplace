@@ -121,6 +121,9 @@ services:
 
   caddy:
     image: caddy:2
+    environment:
+      - CADDY_SITE_ADDRESS=${CADDY_SITE_ADDRESS}
+      - CADDY_EMAIL=${CADDY_EMAIL}
     profiles:
       - edge
     ports:
