@@ -1,8 +1,8 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
-WORKDIR /src
+WORKDIR /repo
 
 COPY . .
-WORKDIR /src/ApiGateway
+WORKDIR /repo/src/ApiGateway
 RUN dotnet restore ApiGateway.csproj
 RUN dotnet publish ApiGateway.csproj -c Release -o /app/publish
 

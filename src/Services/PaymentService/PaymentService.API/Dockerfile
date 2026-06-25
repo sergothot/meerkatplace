@@ -1,8 +1,8 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
-WORKDIR /src
+WORKDIR /repo
 
 COPY . .
-WORKDIR /src/Services/PaymentService/PaymentService.API
+WORKDIR /repo/src/Services/PaymentService/PaymentService.API
 RUN dotnet restore PaymentService.API.csproj
 RUN dotnet publish PaymentService.API.csproj -c Release -o /app/publish
 
