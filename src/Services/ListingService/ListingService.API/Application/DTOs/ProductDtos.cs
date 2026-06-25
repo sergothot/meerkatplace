@@ -16,7 +16,6 @@ public record ProductFilter(
     string? DeliveryType);
 
 public record CreateProductRequest(
-    Guid SellerId,
     string Name,
     string Description,
     decimal Price,
