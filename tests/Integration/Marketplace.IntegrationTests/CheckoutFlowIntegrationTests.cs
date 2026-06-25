@@ -29,25 +29,26 @@ public class CheckoutFlowIntegrationTests
     [Fact]
     public async Task Checkout_HappyPath_EventuallyPaid_AndReturnsShipment()
     {
-        var buyerId = Guid.NewGuid();
+        var auth = await RegisterAndLoginDirectAsync();
 
         var productId = await CreateProductAsync(
             name: $"Integration Happy {DateTimeOffset.UtcNow:yyyyMMddHHmmss}",
             stock: 5,
-            price: 500m);
+            price: 500m,
+            accessToken: auth.AccessToken);
 
-        await AddCartItemAsync(productId, quantity: 2, unitPrice: 500m, buyerId);
+        await AddCartItemAsync(productId, quantity: 2, auth.AccessToken);
 
-        var checkout = await CheckoutAsync(buyerId);
+        var checkout = await CheckoutAsync(auth.AccessToken);
         Assert.Equal("Placed", checkout.Status);
         Assert.True(checkout.RequiresPayment);
         Assert.True(checkout.Amount > 0);
 
-        var finalStatus = await WaitForOrderStatusAsync(checkout.OrderId, expectedStatus: "Paid", maxAttempts: 15, buyerId);
+        var finalStatus = await WaitForOrderStatusAsync(checkout.OrderId, expectedStatus: "Paid", maxAttempts: 15, auth.AccessToken);
         Assert.Equal("Paid", finalStatus);
 
         var shipmentsRequest = new HttpRequestMessage(HttpMethod.Get, $"/orders/{checkout.OrderId}/shipments");
-        shipmentsRequest.Headers.Add("X-User-Id", buyerId.ToString());
+        shipmentsRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", auth.AccessToken);
 
         var shipmentsResponse = await OrderClient.SendAsync(shipmentsRequest);
         shipmentsResponse.EnsureSuccessStatusCode();
@@ -62,19 +63,20 @@ public class CheckoutFlowIntegrationTests
     [Fact]
     public async Task Checkout_InsufficientStock_EventuallyCancelled()
     {
-        var buyerId = Guid.NewGuid();
+        var auth = await RegisterAndLoginDirectAsync();
 
         var productId = await CreateProductAsync(
             name: $"Integration Fail {DateTimeOffset.UtcNow:yyyyMMddHHmmss}",
             stock: 1,
-            price: 200m);
+            price: 200m,
+            accessToken: auth.AccessToken);
 
-        await AddCartItemAsync(productId, quantity: 3, unitPrice: 200m, buyerId);
+        await AddCartItemAsync(productId, quantity: 3, auth.AccessToken);
 
-        var checkout = await CheckoutAsync(buyerId);
+        var checkout = await CheckoutAsync(auth.AccessToken);
         Assert.Equal("Placed", checkout.Status);
 
-        var finalStatus = await WaitForOrderStatusAsync(checkout.OrderId, expectedStatus: "Cancelled", maxAttempts: 15, buyerId);
+        var finalStatus = await WaitForOrderStatusAsync(checkout.OrderId, expectedStatus: "Cancelled", maxAttempts: 15, auth.AccessToken);
         Assert.Equal("Cancelled", finalStatus);
     }
 
@@ -89,11 +91,10 @@ public class CheckoutFlowIntegrationTests
         Assert.Equal(expectedService, payload.Service);
     }
 
-    private static async Task<Guid> CreateProductAsync(string name, int stock, decimal price)
+    private static async Task<Guid> CreateProductAsync(string name, int stock, decimal price, string accessToken)
     {
         var body = new
         {
-            sellerId = "11111111-1111-1111-1111-111111111111",
             name,
             description = "integration",
             price,
@@ -102,7 +103,13 @@ public class CheckoutFlowIntegrationTests
             stockQuantity = stock
         };
 
-        var response = await ListingClient.PostAsJsonAsync("/products", body);
+        var request = new HttpRequestMessage(HttpMethod.Post, "/products")
+        {
+            Content = JsonContent.Create(body)
+        };
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        var response = await ListingClient.SendAsync(request);
         response.EnsureSuccessStatusCode();
 
         var payload = await response.Content.ReadFromJsonAsync<ProductResponse>();
@@ -112,27 +119,25 @@ public class CheckoutFlowIntegrationTests
         return payload.Id;
     }
 
-    private static async Task AddCartItemAsync(Guid productId, int quantity, decimal unitPrice, Guid buyerId)
+    private static async Task AddCartItemAsync(Guid productId, int quantity, string accessToken)
     {
         var body = new
         {
             productId,
-            quantity,
-            unitPrice,
-            currency = "RUB"
+            quantity
         };
 
         var request = new HttpRequestMessage(HttpMethod.Post, "/cart/items")
         {
             Content = JsonContent.Create(body)
         };
-        request.Headers.Add("X-User-Id", buyerId.ToString());
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 
         var response = await OrderClient.SendAsync(request);
         response.EnsureSuccessStatusCode();
     }
 
-    private static async Task<CheckoutResponse> CheckoutAsync(Guid buyerId)
+    private static async Task<CheckoutResponse> CheckoutAsync(string accessToken)
     {
         var body = new
         {
@@ -144,7 +149,7 @@ public class CheckoutFlowIntegrationTests
         {
             Content = JsonContent.Create(body)
         };
-        request.Headers.Add("X-User-Id", buyerId.ToString());
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 
         var response = await OrderClient.SendAsync(request);
         response.EnsureSuccessStatusCode();
@@ -156,12 +161,12 @@ public class CheckoutFlowIntegrationTests
         return payload;
     }
 
-    private static async Task<string> WaitForOrderStatusAsync(Guid orderId, string expectedStatus, int maxAttempts, Guid buyerId)
+    private static async Task<string> WaitForOrderStatusAsync(Guid orderId, string expectedStatus, int maxAttempts, string accessToken)
     {
         for (var i = 0; i < maxAttempts; i++)
         {
             var request = new HttpRequestMessage(HttpMethod.Get, $"/orders/{orderId}/status");
-            request.Headers.Add("X-User-Id", buyerId.ToString());
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 
             var response = await OrderClient.SendAsync(request);
             response.EnsureSuccessStatusCode();
@@ -178,6 +183,41 @@ public class CheckoutFlowIntegrationTests
         }
 
         return "TimedOut";
+    }
+
+    private static async Task<(string AccessToken, Guid UserId)> RegisterAndLoginDirectAsync()
+    {
+        var stamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var nonce = Guid.NewGuid().ToString("N")[..8];
+        var login = $"direct_itest_{stamp}_{nonce}";
+        var email = $"direct_itest_{stamp}_{nonce}@example.com";
+        const string password = "Password123!";
+
+        var registerResponse = await UserClient.PostAsJsonAsync("/auth/register", new
+        {
+            login,
+            email,
+            password
+        });
+
+        Assert.True(
+            registerResponse.StatusCode is HttpStatusCode.Created or HttpStatusCode.Conflict,
+            $"Unexpected register status code: {registerResponse.StatusCode}");
+
+        var loginResponse = await UserClient.PostAsJsonAsync("/auth/login", new
+        {
+            email,
+            password
+        });
+
+        loginResponse.EnsureSuccessStatusCode();
+
+        var loginJson = await loginResponse.Content.ReadAsStringAsync();
+        using var doc = JsonDocument.Parse(loginJson);
+
+        var accessToken = doc.RootElement.GetProperty("accessToken").GetString() ?? string.Empty;
+        var userId = doc.RootElement.GetProperty("user").GetProperty("id").GetGuid();
+        return (accessToken, userId);
     }
 
     private static HttpClient CreateClient(string baseAddress)
@@ -283,6 +323,7 @@ public class GatewayContractIntegrationTests
     public async Task ListingProducts_ContractContainsExpectedFields()
     {
         var name = $"Contract Product {DateTimeOffset.UtcNow:yyyyMMddHHmmss}";
+        var auth = await RegisterAndLoginAsync();
 
         var createResponse = await SendGatewayWithRetryAsync(
             () =>
@@ -291,7 +332,6 @@ public class GatewayContractIntegrationTests
                 {
                     Content = JsonContent.Create(new
                     {
-                        sellerId = "11111111-1111-1111-1111-111111111111",
                         name,
                         description = "contract",
                         price = 123.45m,
@@ -300,6 +340,7 @@ public class GatewayContractIntegrationTests
                         stockQuantity = 2
                     })
                 };
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", auth);
 
                 return request;
             },
@@ -373,6 +414,39 @@ public class GatewayContractIntegrationTests
             || statusCode == HttpStatusCode.BadGateway
             || statusCode == HttpStatusCode.ServiceUnavailable
             || statusCode == HttpStatusCode.GatewayTimeout;
+    }
+
+    private static async Task<string> RegisterAndLoginAsync()
+    {
+        var stamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var nonce = Guid.NewGuid().ToString("N")[..8];
+        var login = $"gateway_itest_{stamp}_{nonce}";
+        var email = $"gateway_itest_{stamp}_{nonce}@example.com";
+        const string password = "Password123!";
+
+        var registerResponse = await SendGatewayWithRetryAsync(
+            () => new HttpRequestMessage(HttpMethod.Post, "/api/v1/auth/register")
+            {
+                Content = JsonContent.Create(new { login, email, password })
+            },
+            maxAttempts: 4);
+
+        Assert.True(
+            registerResponse.StatusCode is HttpStatusCode.Created or HttpStatusCode.Conflict,
+            $"Unexpected register status code: {registerResponse.StatusCode}");
+
+        var loginResponse = await SendGatewayWithRetryAsync(
+            () => new HttpRequestMessage(HttpMethod.Post, "/api/v1/auth/login")
+            {
+                Content = JsonContent.Create(new { email, password })
+            },
+            maxAttempts: 6);
+
+        loginResponse.EnsureSuccessStatusCode();
+
+        var loginJson = await loginResponse.Content.ReadAsStringAsync();
+        using var doc = JsonDocument.Parse(loginJson);
+        return doc.RootElement.GetProperty("accessToken").GetString() ?? string.Empty;
     }
 }
 
@@ -478,7 +552,6 @@ public class AuthenticatedGatewayContractIntegrationTests
             {
                 var detailsRequest = new HttpRequestMessage(HttpMethod.Get, $"/api/v1/order/orders/{orderId}");
                 detailsRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", auth.AccessToken);
-                detailsRequest.Headers.Add("X-User-Id", auth.UserId.ToString());
                 return detailsRequest;
             },
             maxAttempts: 4);
@@ -584,7 +657,6 @@ public class AuthenticatedGatewayContractIntegrationTests
                 {
                     var statusRequest = new HttpRequestMessage(HttpMethod.Get, $"/api/v1/order/orders/{orderId}/status");
                     statusRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-                    statusRequest.Headers.Add("X-User-Id", userId.ToString());
                     return statusRequest;
                 },
                 maxAttempts: 3);
@@ -621,7 +693,6 @@ public class AuthenticatedGatewayContractIntegrationTests
                 {
                     Content = JsonContent.Create(new
                     {
-                        sellerId = "11111111-1111-1111-1111-111111111111",
                         name = productName,
                         description = "auth-contract",
                         price = unitPrice,
@@ -630,6 +701,7 @@ public class AuthenticatedGatewayContractIntegrationTests
                         stockQuantity = 3
                     })
                 };
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 
                 return request;
             },
@@ -648,13 +720,10 @@ public class AuthenticatedGatewayContractIntegrationTests
                     Content = JsonContent.Create(new
                     {
                         productId,
-                        quantity = 1,
-                        unitPrice,
-                        currency = "RUB"
+                        quantity = 1
                     })
                 };
                 addItemRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-                addItemRequest.Headers.Add("X-User-Id", userId.ToString());
                 return addItemRequest;
             },
             maxAttempts: 4);
@@ -672,7 +741,6 @@ public class AuthenticatedGatewayContractIntegrationTests
                     })
                 };
                 checkoutRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-                checkoutRequest.Headers.Add("X-User-Id", userId.ToString());
                 return checkoutRequest;
             },
             maxAttempts: 4);

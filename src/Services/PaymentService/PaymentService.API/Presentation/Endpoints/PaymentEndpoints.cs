@@ -9,9 +9,9 @@ public static class PaymentEndpoints
         app.MapGet("/", () => "Hello World!");
         app.MapGet("/health", () => Results.Ok(new { status = "ok", service = "payment-service" }));
 
-        var paymentsGroup = app.MapGroup("/payments");
-        paymentsGroup.MapPost("", (CreatePaymentRequest request, IPaymentService paymentsService) =>
-            paymentsService.CreatePaymentAsync(request))
+        var paymentsGroup = app.MapGroup("/payments").RequireAuthorization();
+        paymentsGroup.MapPost("", (HttpContext httpContext, CreatePaymentRequest request, IPaymentService paymentsService) =>
+            paymentsService.CreatePaymentAsync(httpContext, request))
             .WithSummary("Create payment")
             .WithDescription("Creates and processes payment for an order.");
 
@@ -20,10 +20,10 @@ public static class PaymentEndpoints
             .WithSummary("Get payment")
             .WithDescription("Returns payment transaction details by id.");
 
-        paymentsGroup.MapPost("/{paymentId:guid}/refund", (Guid paymentId, IPaymentService paymentsService) =>
-            paymentsService.RefundPaymentAsync(paymentId));
+        paymentsGroup.MapPost("/{paymentId:guid}/refund", (HttpContext httpContext, Guid paymentId, IPaymentService paymentsService) =>
+            paymentsService.RefundPaymentAsync(httpContext, paymentId));
 
-        var walletGroup = app.MapGroup("/wallet");
+        var walletGroup = app.MapGroup("/wallet").RequireAuthorization();
         walletGroup.MapGet("", (HttpContext httpContext, IWalletService walletsService) =>
             walletsService.GetWalletAsync(httpContext))
             .WithSummary("Get wallet")

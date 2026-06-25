@@ -2,11 +2,11 @@ namespace ListingService.API.Application.Catalog;
 
 public interface IProductCommandService
 {
-    Task<IResult> CreateProductAsync(CreateProductRequest request);
+    Task<IResult> CreateProductAsync(HttpContext httpContext, CreateProductRequest request);
 
-    Task<IResult> UpdateProductAsync(Guid productId, UpdateProductRequest request);
+    Task<IResult> UpdateProductAsync(HttpContext httpContext, Guid productId, UpdateProductRequest request);
 
-    Task<IResult> UpdateStockAsync(Guid productId, UpdateStockRequest request);
+    Task<IResult> UpdateStockAsync(HttpContext httpContext, Guid productId, UpdateStockRequest request);
 
-    Task<IResult> RemoveProductAsync(Guid productId);
+    Task<IResult> RemoveProductAsync(HttpContext httpContext, Guid productId);
 }

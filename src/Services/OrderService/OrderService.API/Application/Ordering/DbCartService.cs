@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Common.Shared.Domain.Enums;
 using Common.Shared.Application.Interfaces;
 using Common.Shared.Application.IntegrationEvents;
@@ -12,11 +13,16 @@ public sealed class DbCartService(
     ICartRepository carts,
     IOrderRepository orders,
     IUnitOfWork unitOfWork,
-    IPublishEndpoint publishEndpoint) : ICartService
+    IPublishEndpoint publishEndpoint,
+    IProductCatalogClient productCatalogClient) : ICartService
 {
     public async Task<IResult> GetCartAsync(HttpContext httpContext)
     {
-        var buyerId = ResolveBuyerId(httpContext);
+        if (!TryResolveBuyerId(httpContext, out var buyerId))
+        {
+            return Results.Unauthorized();
+        }
+
         var cart = await carts.GetByBuyerIdWithItemsAsync(buyerId);
 
         if (cart is null)
@@ -37,7 +43,20 @@ public sealed class DbCartService(
             return Results.ValidationProblem(errors);
         }
 
-        if (!TryParseCurrency(request.Currency, out var currency))
+        var pricing = await productCatalogClient.GetProductPricingAsync(request.ProductId);
+        if (pricing is null)
+        {
+            return Results.NotFound(new
+            {
+                error = new
+                {
+                    code = "PRODUCT_NOT_FOUND",
+                    message = "Product not found in catalog."
+                }
+            });
+        }
+
+        if (!TryParseCurrency(pricing.Currency, out var currency))
         {
             return Results.ValidationProblem(new Dictionary<string, string[]>
             {
@@ -45,7 +64,11 @@ public sealed class DbCartService(
             });
         }
 
-        var buyerId = ResolveBuyerId(httpContext);
+        if (!TryResolveBuyerId(httpContext, out var buyerId))
+        {
+            return Results.Unauthorized();
+        }
+
         var cart = await carts.GetByBuyerIdAsync(buyerId);
 
         if (cart is null)
@@ -57,7 +80,7 @@ public sealed class DbCartService(
 
         try
         {
-            cart.AddItem(request.ProductId, request.Quantity, request.UnitPrice, currency);
+            cart.AddItem(request.ProductId, request.Quantity, pricing.Price, currency);
         }
         catch (InvalidOperationException ex)
         {
@@ -89,7 +112,11 @@ public sealed class DbCartService(
             return Results.ValidationProblem(errors);
         }
 
-        var buyerId = ResolveBuyerId(httpContext);
+        if (!TryResolveBuyerId(httpContext, out var buyerId))
+        {
+            return Results.Unauthorized();
+        }
+
         var cart = await carts.GetByBuyerIdWithItemsAsync(buyerId);
 
         if (cart is null)
@@ -109,7 +136,11 @@ public sealed class DbCartService(
 
     public async Task<IResult> DeleteCartItemAsync(HttpContext httpContext, Guid itemId)
     {
-        var buyerId = ResolveBuyerId(httpContext);
+        if (!TryResolveBuyerId(httpContext, out var buyerId))
+        {
+            return Results.Unauthorized();
+        }
+
         var cart = await carts.GetByBuyerIdWithItemsAsync(buyerId);
 
         if (cart is null)
@@ -138,7 +169,11 @@ public sealed class DbCartService(
             return Results.ValidationProblem(errors);
         }
 
-        var buyerId = ResolveBuyerId(httpContext);
+        if (!TryResolveBuyerId(httpContext, out var buyerId))
+        {
+            return Results.Unauthorized();
+        }
+
         var cart = await carts.GetByBuyerIdWithItemsAsync(buyerId);
 
         if (cart is null || cart.IsEmpty())
@@ -213,12 +248,12 @@ public sealed class DbCartService(
             RequiresPayment: true));
     }
 
-    private static Guid ResolveBuyerId(HttpContext httpContext)
+    private static bool TryResolveBuyerId(HttpContext httpContext, out Guid buyerId)
     {
-        var headerValue = httpContext.Request.Headers["X-User-Id"].FirstOrDefault();
-        return Guid.TryParse(headerValue, out var parsed)
-            ? parsed
-            : Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var claim = httpContext.User.FindFirstValue("sub")
+            ?? httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        return Guid.TryParse(claim, out buyerId);
     }
 
     private static bool TryParseCurrency(string value, out Currency currency)

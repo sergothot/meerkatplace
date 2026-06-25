@@ -40,11 +40,6 @@ public static class CatalogRequestValidator
     {
         var errors = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
 
-        if (request.SellerId == Guid.Empty)
-        {
-            errors["sellerId"] = ["SellerId is required."];
-        }
-
         if (string.IsNullOrWhiteSpace(request.Name))
         {
             errors["name"] = ["Name is required."];

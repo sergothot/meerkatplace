@@ -1,8 +1,8 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
-WORKDIR /src
+WORKDIR /repo
 
 COPY . .
-WORKDIR /src/Services/UserService/UserService.API
+WORKDIR /repo/src/Services/UserService/UserService.API
 RUN dotnet restore UserService.API.csproj
 RUN dotnet publish UserService.API.csproj -c Release -o /app/publish
 

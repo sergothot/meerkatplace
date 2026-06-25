@@ -1,4 +1,7 @@
+using System.Security.Claims;
+using Common.Shared.Application.IntegrationEvents;
 using Common.Shared.Application.Interfaces;
+using MassTransit;
 using OrderService.API.Application.Abstractions;
 using OrderService.API.Domain.Enums;
 
@@ -7,11 +10,16 @@ namespace OrderService.API.Application.Ordering;
 public sealed class DbOrderQueryService(
     IOrderRepository orders,
     IShipmentRepository shipments,
-    IUnitOfWork unitOfWork) : IOrderQueryService
+    IUnitOfWork unitOfWork,
+    IPublishEndpoint publishEndpoint) : IOrderQueryService
 {
     public async Task<IResult> GetOrdersAsync(HttpContext httpContext)
     {
-        var buyerId = ResolveBuyerId(httpContext);
+        if (!TryResolveBuyerId(httpContext, out var buyerId))
+        {
+            return Results.Unauthorized();
+        }
+
         var buyerOrders = (await orders.ListByBuyerAsync(buyerId))
             .Select(o => new OrderSummaryDto(o.Id, o.Status.ToString(), o.TotalAmount, o.Currency.ToString(), o.CreatedAt))
             .ToList();
@@ -21,7 +29,11 @@ public sealed class DbOrderQueryService(
 
     public async Task<IResult> GetOrderAsync(HttpContext httpContext, Guid orderId)
     {
-        var buyerId = ResolveBuyerId(httpContext);
+        if (!TryResolveBuyerId(httpContext, out var buyerId))
+        {
+            return Results.Unauthorized();
+        }
+
         var order = await orders.GetByIdForBuyerAsync(orderId, buyerId, includeItems: true);
 
         if (order is null)
@@ -49,8 +61,12 @@ public sealed class DbOrderQueryService(
 
     public async Task<IResult> GetOrderStatusAsync(HttpContext httpContext, Guid orderId)
     {
-        var buyerId = ResolveBuyerId(httpContext);
-        var order = await orders.GetByIdForBuyerAsync(orderId, buyerId);
+        if (!TryResolveBuyerId(httpContext, out var buyerId))
+        {
+            return Results.Unauthorized();
+        }
+
+        var order = await orders.GetByIdForBuyerAsync(orderId, buyerId, includeItems: true);
 
         if (order is null)
         {
@@ -62,7 +78,11 @@ public sealed class DbOrderQueryService(
 
     public async Task<IResult> CancelOrderAsync(HttpContext httpContext, Guid orderId)
     {
-        var buyerId = ResolveBuyerId(httpContext);
+        if (!TryResolveBuyerId(httpContext, out var buyerId))
+        {
+            return Results.Unauthorized();
+        }
+
         var order = await orders.GetByIdForBuyerAsync(orderId, buyerId);
 
         if (order is null)
@@ -72,7 +92,20 @@ public sealed class DbOrderQueryService(
 
         try
         {
+            var wasPlaced = order.Status == OrderStatus.Placed;
             order.Cancel();
+
+            if (wasPlaced)
+            {
+                var items = order.Items
+                    .Select(i => new CheckoutItem(i.ProductId, i.Quantity))
+                    .ToList();
+
+                await publishEndpoint.Publish(new ReleaseStockRequested(
+                    Guid.NewGuid(),
+                    order.Id,
+                    items));
+            }
         }
         catch (InvalidOperationException ex)
         {
@@ -93,7 +126,11 @@ public sealed class DbOrderQueryService(
 
     public async Task<IResult> GetShipmentsAsync(HttpContext httpContext, Guid orderId)
     {
-        var buyerId = ResolveBuyerId(httpContext);
+        if (!TryResolveBuyerId(httpContext, out var buyerId))
+        {
+            return Results.Unauthorized();
+        }
+
         var ownsOrder = await orders.ExistsForBuyerAsync(orderId, buyerId);
 
         if (!ownsOrder)
@@ -108,11 +145,11 @@ public sealed class DbOrderQueryService(
         return Results.Ok(shipmentsForOrder);
     }
 
-    private static Guid ResolveBuyerId(HttpContext httpContext)
+    private static bool TryResolveBuyerId(HttpContext httpContext, out Guid buyerId)
     {
-        var headerValue = httpContext.Request.Headers["X-User-Id"].FirstOrDefault();
-        return Guid.TryParse(headerValue, out var parsed)
-            ? parsed
-            : Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var claim = httpContext.User.FindFirstValue("sub")
+            ?? httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        return Guid.TryParse(claim, out buyerId);
     }
 }

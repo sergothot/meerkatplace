@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Common.Shared.Domain.Enums;
 using Common.Shared.Application.Interfaces;
 using PaymentService.API.Application.Abstractions;
@@ -11,7 +12,11 @@ public sealed class DbWalletService(
 {
     public async Task<IResult> GetWalletAsync(HttpContext httpContext)
     {
-        var userId = ResolveUserId(httpContext);
+        if (!TryResolveUserId(httpContext, out var userId))
+        {
+            return Results.Unauthorized();
+        }
+
         var wallet = await wallets.GetByUserIdAsync(userId);
 
         if (wallet is null)
@@ -40,7 +45,11 @@ public sealed class DbWalletService(
             });
         }
 
-        var userId = ResolveUserId(httpContext);
+        if (!TryResolveUserId(httpContext, out var userId))
+        {
+            return Results.Unauthorized();
+        }
+
         var wallet = await wallets.GetByUserIdAsync(userId);
 
         if (wallet is null)
@@ -82,7 +91,11 @@ public sealed class DbWalletService(
             });
         }
 
-        var userId = ResolveUserId(httpContext);
+        if (!TryResolveUserId(httpContext, out var userId))
+        {
+            return Results.Unauthorized();
+        }
+
         var wallet = await wallets.GetByUserIdAsync(userId);
 
         if (wallet is null)
@@ -133,11 +146,11 @@ public sealed class DbWalletService(
         return Enum.TryParse(value, true, out currency);
     }
 
-    private static Guid ResolveUserId(HttpContext? httpContext)
+    private static bool TryResolveUserId(HttpContext? httpContext, out Guid userId)
     {
-        var headerValue = httpContext?.Request.Headers["X-User-Id"].FirstOrDefault();
-        return Guid.TryParse(headerValue, out var parsed)
-            ? parsed
-            : Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var claim = httpContext?.User.FindFirstValue("sub")
+            ?? httpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        return Guid.TryParse(claim, out userId);
     }
 }

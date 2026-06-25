@@ -3,6 +3,7 @@ using Common.Shared.Domain.Enums;
 using ListingService.API.Application.Abstractions;
 using ListingService.API.Domain.Entities;
 using ListingService.API.Domain.Enums;
+using System.Security.Claims;
 
 namespace ListingService.API.Application.Catalog;
 
@@ -11,8 +12,13 @@ public sealed class DbProductCommandService(
     IInventoryStockRepository stocks,
     IUnitOfWork unitOfWork) : IProductCommandService
 {
-    public async Task<IResult> CreateProductAsync(CreateProductRequest request)
+    public async Task<IResult> CreateProductAsync(HttpContext httpContext, CreateProductRequest request)
     {
+        if (!TryResolveCurrentUserId(httpContext, out var sellerId))
+        {
+            return Results.Unauthorized();
+        }
+
         var errors = CatalogRequestValidator.ValidateCreateProduct(request);
         if (errors.Count > 0)
             return Results.ValidationProblem(errors);
@@ -30,7 +36,7 @@ public sealed class DbProductCommandService(
         try
         {
             product = Product.Create(
-                request.SellerId,
+                sellerId,
                 request.Name,
                 request.Description,
                 request.Price,
@@ -73,8 +79,13 @@ public sealed class DbProductCommandService(
             product.DeliveryType.ToString()));
     }
 
-    public async Task<IResult> UpdateProductAsync(Guid productId, UpdateProductRequest request)
+    public async Task<IResult> UpdateProductAsync(HttpContext httpContext, Guid productId, UpdateProductRequest request)
     {
+        if (!TryResolveCurrentUserId(httpContext, out var currentUserId))
+        {
+            return Results.Unauthorized();
+        }
+
         var errors = CatalogRequestValidator.ValidateUpdateProduct(request);
         if (errors.Count > 0)
             return Results.ValidationProblem(errors);
@@ -82,6 +93,11 @@ public sealed class DbProductCommandService(
         var product = await products.GetByIdAsync(productId);
         if (product is null)
             return Results.NotFound();
+
+        if (product.SellerId != currentUserId)
+        {
+            return Results.Forbid();
+        }
 
         var updatedName = string.IsNullOrWhiteSpace(request.Name) ? product.Name : request.Name;
         var updatedDescription = string.IsNullOrWhiteSpace(request.Description) ? product.Description : request.Description;
@@ -120,8 +136,13 @@ public sealed class DbProductCommandService(
             product.DeliveryType.ToString()));
     }
 
-    public async Task<IResult> UpdateStockAsync(Guid productId, UpdateStockRequest request)
+    public async Task<IResult> UpdateStockAsync(HttpContext httpContext, Guid productId, UpdateStockRequest request)
     {
+        if (!TryResolveCurrentUserId(httpContext, out var currentUserId))
+        {
+            return Results.Unauthorized();
+        }
+
         var errors = CatalogRequestValidator.ValidateUpdateStock(request);
         if (errors.Count > 0)
             return Results.ValidationProblem(errors);
@@ -129,6 +150,11 @@ public sealed class DbProductCommandService(
         var product = await products.GetByIdAsync(productId);
         if (product is null)
             return Results.NotFound();
+
+        if (product.SellerId != currentUserId)
+        {
+            return Results.Forbid();
+        }
 
         var stock = await stocks.GetByProductIdAsync(productId);
         if (stock is null)
@@ -153,11 +179,21 @@ public sealed class DbProductCommandService(
         return Results.Ok(new { productId, quantity = stock.Quantity, reserved = stock.Reserved });
     }
 
-    public async Task<IResult> RemoveProductAsync(Guid productId)
+    public async Task<IResult> RemoveProductAsync(HttpContext httpContext, Guid productId)
     {
+        if (!TryResolveCurrentUserId(httpContext, out var currentUserId))
+        {
+            return Results.Unauthorized();
+        }
+
         var product = await products.GetByIdAsync(productId);
         if (product is null)
             return Results.NotFound();
+
+        if (product.SellerId != currentUserId)
+        {
+            return Results.Forbid();
+        }
 
         product.Deactivate();
         products.Update(product);
@@ -179,6 +215,14 @@ public sealed class DbProductCommandService(
     private static bool TryParseStatus(string value, out ProductStatus status)
     {
         return Enum.TryParse(value, true, out status);
+    }
+
+    private static bool TryResolveCurrentUserId(HttpContext httpContext, out Guid userId)
+    {
+        var claim = httpContext.User.FindFirstValue("sub")
+            ?? httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        return Guid.TryParse(claim, out userId);
     }
 
     private static void ApplyStatus(Product product, ProductStatus status)

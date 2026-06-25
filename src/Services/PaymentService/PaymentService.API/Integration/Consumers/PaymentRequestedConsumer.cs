@@ -61,14 +61,26 @@ public sealed class PaymentRequestedConsumer(
             return;
         }
 
-        var payment = new PaymentTransaction
+        PaymentTransaction payment;
+        try
         {
-            OrderId = message.OrderId,
-            Amount = message.Amount,
-            Currency = currency,
-            PaymentMethod = method,
-            Status = PaymentStatus.Pending
-        };
+            payment = PaymentTransaction.CreatePending(message.OrderId, message.Amount, currency, method);
+        }
+        catch (InvalidOperationException)
+        {
+            await publishEndpoint.Publish(new PaymentFailed(message.CorrelationId, message.OrderId, "Invalid payment payload."));
+
+            try
+            {
+                await MarkMessageProcessedAsync(messageId, context.CancellationToken);
+            }
+            catch (DbUpdateException)
+            {
+                return;
+            }
+
+            return;
+        }
 
         if (method == PaymentMethod.Wallet)
         {
