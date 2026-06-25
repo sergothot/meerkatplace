@@ -16,16 +16,6 @@ public static class OrderRequestValidator
             errors["quantity"] = new[] { "Quantity must be greater than zero." };
         }
 
-        if (request.UnitPrice <= 0)
-        {
-            errors["unitPrice"] = new[] { "UnitPrice must be greater than zero." };
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Currency) || request.Currency.Length is < 3 or > 5)
-        {
-            errors["currency"] = new[] { "Currency must be a 3-5 character ISO-like code." };
-        }
-
         return errors;
     }
 
