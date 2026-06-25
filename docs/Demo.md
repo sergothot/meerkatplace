@@ -1,16 +1,13 @@
 # Демо Meerkatplace
 
-## 1. Откройте страницы документации
+## 1. Поднимите систему
 
-- Документация Gateway: http://localhost:8080/docs
-- Документация сервиса пользователей: http://localhost:5001/docs
-- Документация сервиса объявлений: http://localhost:5002/docs
-- Документация сервиса заказов: http://localhost:5003/docs
-- Документация сервиса платежей: http://localhost:5004/docs
+```bash
+docker-compose build
+docker-compose up -d
+```
 
-## 2. Проверки здоровья сервисов
-
-Выполните эти команды, чтобы показать готовность сервисов:
+## 2. Проверка здоровья сервисов
 
 ```bash
 curl -s http://localhost:8080/health
@@ -20,7 +17,19 @@ curl -s http://localhost:5003/health
 curl -s http://localhost:5004/health
 ```
 
-## 3. Регистрация и вход через gateway
+## 3. Swagger UI
+
+- Gateway: http://localhost:8080/docs
+- User Service: http://localhost:5001/docs
+- Listing Service: http://localhost:5002/docs
+- Order Service: http://localhost:5003/docs
+- Payment Service: http://localhost:5004/docs
+
+## 4. Сквозной сценарий Register -> Checkout -> Paid
+
+Ниже команды через Gateway (`http://localhost:8080`) с bearer-токеном.
+
+### 4.1 Регистрация
 
 ```bash
 curl -s -X POST http://localhost:8080/api/v1/auth/register \
@@ -32,6 +41,8 @@ curl -s -X POST http://localhost:8080/api/v1/auth/register \
   }'
 ```
 
+### 4.2 Вход
+
 ```bash
 curl -s -X POST http://localhost:8080/api/v1/auth/login \
   -H 'Content-Type: application/json' \
@@ -41,15 +52,31 @@ curl -s -X POST http://localhost:8080/api/v1/auth/login \
   }'
 ```
 
-Возьмите accessToken и user.id из ответа на вход.
+Сохраните `accessToken` из ответа.
 
-## 4. Создайте товар в сервисе объявлений
+### 4.3 Создание адреса пользователя
+
+```bash
+curl -s -X POST http://localhost:8080/api/v1/user/users/me/addresses \
+  -H 'Content-Type: application/json' \
+  -H 'Authorization: Bearer <accessToken>' \
+  -d '{
+    "country": "RU",
+    "city": "Moscow",
+    "street": "Tverskaya 1",
+    "postalCode": "101000"
+  }'
+```
+
+Сохраните `id` адреса как `addressId`.
+
+### 4.4 Создание товара
 
 ```bash
 curl -s -X POST http://localhost:8080/api/v1/listing/products \
   -H 'Content-Type: application/json' \
+  -H 'Authorization: Bearer <accessToken>' \
   -d '{
-    "sellerId": "11111111-1111-1111-1111-111111111111",
     "name": "Demo Mouse",
     "description": "Demo product",
     "price": 1499.99,
@@ -59,61 +86,57 @@ curl -s -X POST http://localhost:8080/api/v1/listing/products \
   }'
 ```
 
-Сохраните id как productId.
+Сохраните `id` товара как `productId`.
 
-## 5. Добавьте в корзину и оформите заказ
-
-Используйте id аутентифицированного пользователя в заголовке X-User-Id.
+### 4.5 Добавление товара в корзину
 
 ```bash
 curl -s -X POST http://localhost:8080/api/v1/order/cart/items \
   -H 'Content-Type: application/json' \
   -H 'Authorization: Bearer <accessToken>' \
-  -H 'X-User-Id: <userId>' \
   -d '{
     "productId": "<productId>",
-    "quantity": 1,
-    "unitPrice": 1499.99,
-    "currency": "RUB"
+    "quantity": 1
   }'
 ```
+
+### 4.6 Checkout
 
 ```bash
 curl -s -X POST http://localhost:8080/api/v1/order/cart/checkout \
   -H 'Content-Type: application/json' \
   -H 'Authorization: Bearer <accessToken>' \
-  -H 'X-User-Id: <userId>' \
   -d '{
-    "addressId": "demo-address",
+    "addressId": "<addressId>",
     "paymentMethod": "Wallet"
   }'
 ```
 
-Сохраните orderId.
+Сохраните `orderId`.
 
-## 6. Проверяйте статус заказа
+### 4.7 Проверка статуса заказа
 
 ```bash
 curl -s -X GET http://localhost:8080/api/v1/order/orders/<orderId>/status \
-  -H 'Authorization: Bearer <accessToken>' \
-  -H 'X-User-Id: <userId>'
+  -H 'Authorization: Bearer <accessToken>'
 ```
 
-Ожидаемая последовательность статусов: Placed -> Paid (успешный сценарий).
+Ожидаемая последовательность: `Placed -> Paid`.
 
-## 7. Покажите данные об отгрузке
+### 4.8 Проверка отгрузки
 
 ```bash
 curl -s -X GET http://localhost:8080/api/v1/order/orders/<orderId>/shipments \
-  -H 'Authorization: Bearer <accessToken>' \
-  -H 'X-User-Id: <userId>'
+  -H 'Authorization: Bearer <accessToken>'
 ```
 
-Ожидается: как минимум одна запись об отгрузке для оплаченного заказа.
+Ожидается минимум одна запись для оплаченного заказа.
 
-## 8. Сценарий ошибки
+## 5. Негативный сценарий (недостаточно остатков)
 
-- Создайте еще один товар с stockQuantity: 1.
-- Добавьте в корзину количество 3.
-- Оформите заказ снова.
-- Проверяйте статус заказа, чтобы показать компенсирующее поведение (Cancelled).
+1. Создайте товар со `stockQuantity = 1`.
+2. Добавьте в корзину `quantity = 3`.
+3. Оформите заказ.
+4. Проверяйте `GET /api/v1/order/orders/<orderId>/status`.
+
+Ожидаемое поведение: компенсирующий сценарий со статусом `Cancelled`.
