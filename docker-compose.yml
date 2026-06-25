@@ -7,7 +7,13 @@ services:
       - "8080:8080"
     environment:
       - ASPNETCORE_URLS=http://+:8080
-      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_ENVIRONMENT=Production
+      - Jwt__Key=${JWT_KEY:-dev-only-secret-key-min-32-chars-long!!}
+      - Jwt__Issuer=${JWT_ISSUER:-meerkatplace-user-service}
+      - Jwt__Audience=${JWT_AUDIENCE:-meerkatplace}
+      - Cors__AllowedOrigins__0=${CORS_ORIGIN:-http://localhost:5500}
+      - Features__EnableSwagger=true
+    restart: unless-stopped
     depends_on:
       - user-service
       - listing-service
@@ -22,11 +28,13 @@ services:
       - "5001:8080"
     environment:
       - ASPNETCORE_URLS=http://+:8080
-      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_ENVIRONMENT=Production
       - ConnectionStrings__DefaultConnection=Host=user-db;Port=5432;Database=userservice;Username=postgres;Password=postgres
-      - Jwt__Key=dev-only-secret-key-min-32-chars-long!!
-      - Jwt__Issuer=meerkatplace-user-service
-      - Jwt__Audience=meerkatplace
+      - Jwt__Key=${JWT_KEY:-dev-only-secret-key-min-32-chars-long!!}
+      - Jwt__Issuer=${JWT_ISSUER:-meerkatplace-user-service}
+      - Jwt__Audience=${JWT_AUDIENCE:-meerkatplace}
+      - Features__EnableSwagger=true
+    restart: unless-stopped
     depends_on:
       user-db:
         condition: service_healthy
@@ -39,14 +47,16 @@ services:
       - "5002:8080"
     environment:
       - ASPNETCORE_URLS=http://+:8080
-      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_ENVIRONMENT=Production
       - ConnectionStrings__DefaultConnection=Host=listing-db;Port=5432;Database=listingservice;Username=postgres;Password=postgres
       - RabbitMq__Host=rabbitmq
       - RabbitMq__Username=guest
       - RabbitMq__Password=guest
-      - Jwt__Key=dev-only-secret-key-min-32-chars-long!!
-      - Jwt__Issuer=meerkatplace-user-service
-      - Jwt__Audience=meerkatplace
+      - Jwt__Key=${JWT_KEY:-dev-only-secret-key-min-32-chars-long!!}
+      - Jwt__Issuer=${JWT_ISSUER:-meerkatplace-user-service}
+      - Jwt__Audience=${JWT_AUDIENCE:-meerkatplace}
+      - Features__EnableSwagger=true
+    restart: unless-stopped
     depends_on:
       listing-db:
         condition: service_healthy
@@ -61,15 +71,17 @@ services:
       - "5003:8080"
     environment:
       - ASPNETCORE_URLS=http://+:8080
-      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_ENVIRONMENT=Production
       - ConnectionStrings__DefaultConnection=Host=order-db;Port=5432;Database=orderservice;Username=postgres;Password=postgres
       - RabbitMq__Host=rabbitmq
       - RabbitMq__Username=guest
       - RabbitMq__Password=guest
       - ListingService__BaseUrl=http://listing-service:8080
-      - Jwt__Key=dev-only-secret-key-min-32-chars-long!!
-      - Jwt__Issuer=meerkatplace-user-service
-      - Jwt__Audience=meerkatplace
+      - Jwt__Key=${JWT_KEY:-dev-only-secret-key-min-32-chars-long!!}
+      - Jwt__Issuer=${JWT_ISSUER:-meerkatplace-user-service}
+      - Jwt__Audience=${JWT_AUDIENCE:-meerkatplace}
+      - Features__EnableSwagger=true
+    restart: unless-stopped
     depends_on:
       order-db:
         condition: service_healthy
@@ -84,14 +96,16 @@ services:
       - "5004:8080"
     environment:
       - ASPNETCORE_URLS=http://+:8080
-      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_ENVIRONMENT=Production
       - ConnectionStrings__DefaultConnection=Host=payment-db;Port=5432;Database=paymentservice;Username=postgres;Password=postgres
       - RabbitMq__Host=rabbitmq
       - RabbitMq__Username=guest
       - RabbitMq__Password=guest
-      - Jwt__Key=dev-only-secret-key-min-32-chars-long!!
-      - Jwt__Issuer=meerkatplace-user-service
-      - Jwt__Audience=meerkatplace
+      - Jwt__Key=${JWT_KEY:-dev-only-secret-key-min-32-chars-long!!}
+      - Jwt__Issuer=${JWT_ISSUER:-meerkatplace-user-service}
+      - Jwt__Audience=${JWT_AUDIENCE:-meerkatplace}
+      - Features__EnableSwagger=true
+    restart: unless-stopped
     depends_on:
       payment-db:
         condition: service_healthy
@@ -103,6 +117,22 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672"
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2
+    profiles:
+      - edge
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infra/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - api-gateway
+    restart: unless-stopped
 
   user-db:
     image: postgres:17
@@ -112,6 +142,9 @@ services:
       POSTGRES_PASSWORD: postgres
     ports:
       - "5433:5432"
+    restart: unless-stopped
+    volumes:
+      - user-db-data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -126,6 +159,9 @@ services:
       POSTGRES_PASSWORD: postgres
     ports:
       - "5434:5432"
+    restart: unless-stopped
+    volumes:
+      - listing-db-data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -140,6 +176,9 @@ services:
       POSTGRES_PASSWORD: postgres
     ports:
       - "5435:5432"
+    restart: unless-stopped
+    volumes:
+      - order-db-data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -154,9 +193,20 @@ services:
       POSTGRES_PASSWORD: postgres
     ports:
       - "5436:5432"
+    restart: unless-stopped
+    volumes:
+      - payment-db-data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
       timeout: 5s
       retries: 5
+
+volumes:
+  caddy-data:
+  caddy-config:
+  user-db-data:
+  listing-db-data:
+  order-db-data:
+  payment-db-data:
 
