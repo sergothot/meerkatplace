@@ -29,20 +29,24 @@ public static class ListingEndpoints
             .WithSummary("Get product")
             .WithDescription("Returns details for one product by id.");
 
-        productsGroup.MapPost("", (CreateProductRequest request, IProductCommandService commands) =>
-            commands.CreateProductAsync(request))
+        productsGroup.MapPost("", (HttpContext httpContext, CreateProductRequest request, IProductCommandService commands) =>
+            commands.CreateProductAsync(httpContext, request))
+            .RequireAuthorization()
             .WithSummary("Create product")
             .WithDescription("Creates a product and optional initial stock quantity.");
 
-        productsGroup.MapPatch("/{id:guid}", (Guid id, UpdateProductRequest request, IProductCommandService commands) =>
-            commands.UpdateProductAsync(id, request))
+        productsGroup.MapPatch("/{id:guid}", (HttpContext httpContext, Guid id, UpdateProductRequest request, IProductCommandService commands) =>
+            commands.UpdateProductAsync(httpContext, id, request))
+            .RequireAuthorization()
             .WithSummary("Update product")
             .WithDescription("Updates mutable product fields such as name, price, and status.");
 
-        productsGroup.MapPatch("/{id:guid}/stock", (Guid id, UpdateStockRequest request, IProductCommandService commands) =>
-            commands.UpdateStockAsync(id, request));
+        productsGroup.MapPatch("/{id:guid}/stock", (HttpContext httpContext, Guid id, UpdateStockRequest request, IProductCommandService commands) =>
+            commands.UpdateStockAsync(httpContext, id, request))
+            .RequireAuthorization();
 
-        productsGroup.MapDelete("/{id:guid}", (Guid id, IProductCommandService commands) =>
-            commands.RemoveProductAsync(id));
+        productsGroup.MapDelete("/{id:guid}", (HttpContext httpContext, Guid id, IProductCommandService commands) =>
+            commands.RemoveProductAsync(httpContext, id))
+            .RequireAuthorization();
     }
 }
