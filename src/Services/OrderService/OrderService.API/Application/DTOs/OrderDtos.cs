@@ -1,6 +1,6 @@
 namespace OrderService.API.Application.DTOs;
 
-public record AddCartItemRequest(Guid ProductId, int Quantity, decimal UnitPrice, string Currency);
+public record AddCartItemRequest(Guid ProductId, int Quantity);
 
 public record UpdateCartItemRequest(int Quantity);
 
