@@ -101,7 +101,7 @@ jobs:
       - name: Build image
         uses: docker/build-push-action@v6
         with:
-          context: ./src
+          context: .
           file: ${{ matrix.dockerfile }}
           push: false
           tags: meerkatplace/${{ matrix.service }}:ci
