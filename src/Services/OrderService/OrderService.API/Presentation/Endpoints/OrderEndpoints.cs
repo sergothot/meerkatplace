@@ -9,7 +9,7 @@ public static class OrderEndpoints
         app.MapGet("/", () => "Hello World!");
         app.MapGet("/health", () => Results.Ok(new { status = "ok", service = "order-service" }));
 
-        var cartGroup = app.MapGroup("/cart");
+        var cartGroup = app.MapGroup("/cart").RequireAuthorization("buyer");
         cartGroup.MapGet("", (HttpContext httpContext, ICartService cartsService) =>
             cartsService.GetCartAsync(httpContext));
 
@@ -29,7 +29,7 @@ public static class OrderEndpoints
             .WithSummary("Checkout cart")
             .WithDescription("Places an order and starts asynchronous checkout orchestration.");
 
-        var ordersGroup = app.MapGroup("/orders");
+        var ordersGroup = app.MapGroup("/orders").RequireAuthorization("buyer");
         ordersGroup.MapGet("", (HttpContext httpContext, IOrderQueryService ordersService) =>
             ordersService.GetOrdersAsync(httpContext))
             .WithSummary("List orders")
