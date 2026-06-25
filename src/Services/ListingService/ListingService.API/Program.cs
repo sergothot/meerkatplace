@@ -17,6 +17,7 @@ using Microsoft.OpenApi;
 JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
 var builder = WebApplication.CreateBuilder(args);
+var enableSwagger = builder.Configuration.GetValue<bool>("Features:EnableSwagger");
 builder.Services.AddOpenApi();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -105,7 +106,7 @@ using (var scope = app.Services.CreateScope())
     await db.Database.MigrateAsync();
 }
 
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() || enableSwagger)
 {
     app.MapOpenApi();
     app.UseSwagger();

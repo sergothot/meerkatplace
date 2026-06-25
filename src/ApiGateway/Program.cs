@@ -9,6 +9,20 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddReverseProxy().LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
 
+var corsAllowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
+builder.Services.AddCors(options =>
+{
+	options.AddPolicy("frontend", policy =>
+	{
+		if (corsAllowedOrigins.Length > 0)
+		{
+			policy.WithOrigins(corsAllowedOrigins)
+				.AllowAnyHeader()
+				.AllowAnyMethod();
+		}
+	});
+});
+
 builder.Services.AddHttpLogging(options =>
 {
 	options.LoggingFields = HttpLoggingFields.RequestMethod |
@@ -84,6 +98,7 @@ app.Use(async (context, next) =>
 });
 
 app.UseRateLimiter();
+app.UseCors("frontend");
 app.UseAuthentication();
 app.UseAuthorization();
 

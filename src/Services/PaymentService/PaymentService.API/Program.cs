@@ -17,6 +17,7 @@ using PaymentService.API.Presentation.Endpoints;
 JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
 var builder = WebApplication.CreateBuilder(args);
+var enableSwagger = builder.Configuration.GetValue<bool>("Features:EnableSwagger");
 builder.Services.AddOpenApi();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -103,7 +104,7 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<PaymentDbContext>();
     await db.Database.MigrateAsync();
 }
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() || enableSwagger)
 {
     app.MapOpenApi();
     app.UseSwagger();
