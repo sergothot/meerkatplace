@@ -6,12 +6,14 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi;
 using UserService.API.Application.Abstractions;
 using UserService.API.Application.Auth;
 using UserService.API.Application.Users;
 using UserService.API.Domain.Entities;
 using UserService.API.Infrastructure.Persistence;
 using UserService.API.Infrastructure.Repositories;
+using UserService.API.Presentation.OpenApi;
 using UserService.API.Presentation.Endpoints;
 
 JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
@@ -20,7 +22,25 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.OperationFilter<AuthorizeOnlyOperationFilter>();
+
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Paste JWT access token. Example: eyJhbGciOi..."
+    });
+
+    options.AddSecurityRequirement(doc => new OpenApiSecurityRequirement
+    {
+        [new OpenApiSecuritySchemeReference("Bearer", doc, null)] = new List<string>()
+    });
+});
 
 builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
