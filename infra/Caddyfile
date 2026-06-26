@@ -1,4 +1,8 @@
 {
+    cert_issuer letsencrypt
+}
+
+{
     email {$CADDY_EMAIL:devnull@example.com}
 }
 
