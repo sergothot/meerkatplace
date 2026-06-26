@@ -1,0 +1,96 @@
+name: CD
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-push:
+    name: Build and Push (${{ matrix.service }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: api-gateway
+            dockerfile: src/ApiGateway/Dockerfile
+            image: meerkatplace-api-gateway
+          - service: user-service
+            dockerfile: src/Services/UserService/UserService.API/Dockerfile
+            image: meerkatplace-user-service
+          - service: listing-service
+            dockerfile: src/Services/ListingService/ListingService.API/Dockerfile
+            image: meerkatplace-listing-service
+          - service: order-service
+            dockerfile: src/Services/OrderService/OrderService.API/Dockerfile
+            image: meerkatplace-order-service
+          - service: payment-service
+            dockerfile: src/Services/PaymentService/PaymentService.API/Dockerfile
+            image: meerkatplace-payment-service
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:latest
+            ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:${{ github.sha }}
+
+  deploy:
+    name: Deploy to Droplet
+    runs-on: ubuntu-latest
+    needs: build-and-push
+
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script_stop: true
+          script: |
+            set -eu
+
+            cd /opt/meerkatplace
+            git fetch origin main
+            git checkout main
+            git pull --ff-only origin main
+
+            cat > .env <<EOF
+            GHCR_OWNER=${{ github.repository_owner }}
+            IMAGE_TAG=${{ github.sha }}
+            JWT_KEY=${{ secrets.JWT_KEY }}
+            JWT_ISSUER=${{ secrets.JWT_ISSUER }}
+            JWT_AUDIENCE=${{ secrets.JWT_AUDIENCE }}
+            CORS_ORIGIN=${{ secrets.CORS_ORIGIN }}
+            CADDY_SITE_ADDRESS=${{ secrets.CADDY_SITE_ADDRESS }}
+            CADDY_EMAIL=${{ secrets.CADDY_EMAIL }}
+            EOF
+
+            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
+            docker compose -f docker-compose.prod.yml --profile edge pull
+            docker compose -f docker-compose.prod.yml --profile edge up -d
