@@ -1,17 +1,15 @@
 services:
   api-gateway:
-    build:
-      context: .
-      dockerfile: src/ApiGateway/Dockerfile
+    image: ghcr.io/${GHCR_OWNER}/meerkatplace-api-gateway:${IMAGE_TAG:-latest}
     ports:
       - "8080:8080"
     environment:
       - ASPNETCORE_URLS=http://+:8080
       - ASPNETCORE_ENVIRONMENT=Production
-      - Jwt__Key=${JWT_KEY:-dev-only-secret-key-min-32-chars-long!!}
-      - Jwt__Issuer=${JWT_ISSUER:-meerkatplace-user-service}
-      - Jwt__Audience=${JWT_AUDIENCE:-meerkatplace}
-      - Cors__AllowedOrigins__0=${CORS_ORIGIN:-http://localhost:5500}
+      - Jwt__Key=${JWT_KEY}
+      - Jwt__Issuer=${JWT_ISSUER}
+      - Jwt__Audience=${JWT_AUDIENCE}
+      - Cors__AllowedOrigins__0=${CORS_ORIGIN}
       - Features__EnableSwagger=true
     restart: unless-stopped
     depends_on:
@@ -21,18 +19,14 @@ services:
       - payment-service
 
   user-service:
-    build:
-      context: .
-      dockerfile: src/Services/UserService/UserService.API/Dockerfile
-    ports:
-      - "5001:8080"
+    image: ghcr.io/${GHCR_OWNER}/meerkatplace-user-service:${IMAGE_TAG:-latest}
     environment:
       - ASPNETCORE_URLS=http://+:8080
       - ASPNETCORE_ENVIRONMENT=Production
       - ConnectionStrings__DefaultConnection=Host=user-db;Port=5432;Database=userservice;Username=postgres;Password=postgres
-      - Jwt__Key=${JWT_KEY:-dev-only-secret-key-min-32-chars-long!!}
-      - Jwt__Issuer=${JWT_ISSUER:-meerkatplace-user-service}
-      - Jwt__Audience=${JWT_AUDIENCE:-meerkatplace}
+      - Jwt__Key=${JWT_KEY}
+      - Jwt__Issuer=${JWT_ISSUER}
+      - Jwt__Audience=${JWT_AUDIENCE}
       - Features__EnableSwagger=true
       - Swagger__Endpoint=/swagger/user/v1/swagger.json
     restart: unless-stopped
@@ -41,11 +35,7 @@ services:
         condition: service_healthy
 
   listing-service:
-    build:
-      context: .
-      dockerfile: src/Services/ListingService/ListingService.API/Dockerfile
-    ports:
-      - "5002:8080"
+    image: ghcr.io/${GHCR_OWNER}/meerkatplace-listing-service:${IMAGE_TAG:-latest}
     environment:
       - ASPNETCORE_URLS=http://+:8080
       - ASPNETCORE_ENVIRONMENT=Production
@@ -53,9 +43,9 @@ services:
       - RabbitMq__Host=rabbitmq
       - RabbitMq__Username=guest
       - RabbitMq__Password=guest
-      - Jwt__Key=${JWT_KEY:-dev-only-secret-key-min-32-chars-long!!}
-      - Jwt__Issuer=${JWT_ISSUER:-meerkatplace-user-service}
-      - Jwt__Audience=${JWT_AUDIENCE:-meerkatplace}
+      - Jwt__Key=${JWT_KEY}
+      - Jwt__Issuer=${JWT_ISSUER}
+      - Jwt__Audience=${JWT_AUDIENCE}
       - Features__EnableSwagger=true
       - Swagger__Endpoint=/swagger/listing/v1/swagger.json
     restart: unless-stopped
@@ -66,11 +56,7 @@ services:
         condition: service_started
 
   order-service:
-    build:
-      context: .
-      dockerfile: src/Services/OrderService/OrderService.API/Dockerfile
-    ports:
-      - "5003:8080"
+    image: ghcr.io/${GHCR_OWNER}/meerkatplace-order-service:${IMAGE_TAG:-latest}
     environment:
       - ASPNETCORE_URLS=http://+:8080
       - ASPNETCORE_ENVIRONMENT=Production
@@ -79,9 +65,9 @@ services:
       - RabbitMq__Username=guest
       - RabbitMq__Password=guest
       - ListingService__BaseUrl=http://listing-service:8080
-      - Jwt__Key=${JWT_KEY:-dev-only-secret-key-min-32-chars-long!!}
-      - Jwt__Issuer=${JWT_ISSUER:-meerkatplace-user-service}
-      - Jwt__Audience=${JWT_AUDIENCE:-meerkatplace}
+      - Jwt__Key=${JWT_KEY}
+      - Jwt__Issuer=${JWT_ISSUER}
+      - Jwt__Audience=${JWT_AUDIENCE}
       - Features__EnableSwagger=true
       - Swagger__Endpoint=/swagger/order/v1/swagger.json
     restart: unless-stopped
@@ -92,11 +78,7 @@ services:
         condition: service_started
 
   payment-service:
-    build:
-      context: .
-      dockerfile: src/Services/PaymentService/PaymentService.API/Dockerfile
-    ports:
-      - "5004:8080"
+    image: ghcr.io/${GHCR_OWNER}/meerkatplace-payment-service:${IMAGE_TAG:-latest}
     environment:
       - ASPNETCORE_URLS=http://+:8080
       - ASPNETCORE_ENVIRONMENT=Production
@@ -104,9 +86,9 @@ services:
       - RabbitMq__Host=rabbitmq
       - RabbitMq__Username=guest
       - RabbitMq__Password=guest
-      - Jwt__Key=${JWT_KEY:-dev-only-secret-key-min-32-chars-long!!}
-      - Jwt__Issuer=${JWT_ISSUER:-meerkatplace-user-service}
-      - Jwt__Audience=${JWT_AUDIENCE:-meerkatplace}
+      - Jwt__Key=${JWT_KEY}
+      - Jwt__Issuer=${JWT_ISSUER}
+      - Jwt__Audience=${JWT_AUDIENCE}
       - Features__EnableSwagger=true
       - Swagger__Endpoint=/swagger/payment/v1/swagger.json
     restart: unless-stopped
@@ -118,9 +100,6 @@ services:
 
   rabbitmq:
     image: rabbitmq:3-management
-    ports:
-      - "5672:5672"
-      - "15672:15672"
     restart: unless-stopped
 
   caddy:
@@ -147,8 +126,6 @@ services:
       POSTGRES_DB: userservice
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-    ports:
-      - "5433:5432"
     restart: unless-stopped
     volumes:
       - user-db-data:/var/lib/postgresql/data
@@ -164,8 +141,6 @@ services:
       POSTGRES_DB: listingservice
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-    ports:
-      - "5434:5432"
     restart: unless-stopped
     volumes:
       - listing-db-data:/var/lib/postgresql/data
@@ -181,8 +156,6 @@ services:
       POSTGRES_DB: orderservice
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-    ports:
-      - "5435:5432"
     restart: unless-stopped
     volumes:
       - order-db-data:/var/lib/postgresql/data
@@ -198,8 +171,6 @@ services:
       POSTGRES_DB: paymentservice
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-    ports:
-      - "5436:5432"
     restart: unless-stopped
     volumes:
       - payment-db-data:/var/lib/postgresql/data
@@ -216,4 +187,3 @@ volumes:
   listing-db-data:
   order-db-data:
   payment-db-data:
-
