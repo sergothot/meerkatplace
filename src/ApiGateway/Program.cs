@@ -104,15 +104,15 @@ app.UseAuthorization();
 
 app.MapGet("/", () => "Hello World!");
 app.MapGet("/health", () => Results.Ok(new { status = "ok", service = "api-gateway" }));
-app.MapGet("/docs", () => Results.Content(GetGatewayDocsHtml(), "text/html"));
-app.MapGet("/docs/demo", () => Results.Content(GetGatewayDemoHtml(), "text/html"));
+app.MapGet("/docs", (HttpContext context) => Results.Content(GetGatewayDocsHtml(context), "text/html"));
+app.MapGet("/docs/demo", (HttpContext context) => Results.Content(GetGatewayDemoHtml(context), "text/html"));
 app.MapReverseProxy().RequireRateLimiting("api");
 
 app.Run();
 
-static string GetGatewayDocsHtml()
+static string GetGatewayDocsHtml(HttpContext context)
 {
-		return """
+		return $$"""
 <!doctype html>
 <html lang="en">
 <head>
@@ -130,21 +130,21 @@ static string GetGatewayDocsHtml()
 <body>
 	<h1>Meerkatplace API Docs</h1>
 	<ul>
-		<li><a href="/docs/demo">Demo Walkthrough</a> (<code>http://localhost:8080/docs/demo</code>)</li>
-		<li><a href="http://localhost:5001/docs" target="_blank" rel="noopener">User Service Docs</a> (<code>http://localhost:5001/docs</code>)</li>
-		<li><a href="http://localhost:5002/docs" target="_blank" rel="noopener">Listing Service Docs</a> (<code>http://localhost:5002/docs</code>)</li>
-		<li><a href="http://localhost:5003/docs" target="_blank" rel="noopener">Order Service Docs</a> (<code>http://localhost:5003/docs</code>)</li>
-		<li><a href="http://localhost:5004/docs" target="_blank" rel="noopener">Payment Service Docs</a> (<code>http://localhost:5004/docs</code>)</li>
-		<li><a href="http://localhost:8080/health" target="_blank" rel="noopener">Gateway Health</a> (<code>http://localhost:8080/health</code>)</li>
+		<li><a href="/docs/demo">Demo Walkthrough</a> (<code>/docs/demo</code>)</li>
+		<li><a href="/docs/user/" target="_blank" rel="noopener">User Service Swagger UI</a> (<code>/docs/user/</code>)</li>
+		<li><a href="/docs/listing/" target="_blank" rel="noopener">Listing Service Swagger UI</a> (<code>/docs/listing/</code>)</li>
+		<li><a href="/docs/order/" target="_blank" rel="noopener">Order Service Swagger UI</a> (<code>/docs/order/</code>)</li>
+		<li><a href="/docs/payment/" target="_blank" rel="noopener">Payment Service Swagger UI</a> (<code>/docs/payment/</code>)</li>
+		<li><a href="/health" target="_blank" rel="noopener">Gateway Health</a> (<code>/health</code>)</li>
 	</ul>
 </body>
 </html>
 """;
 }
 
-static string GetGatewayDemoHtml()
+static string GetGatewayDemoHtml(HttpContext context)
 {
-	return """
+	return $$"""
 <!doctype html>
 <html lang="en">
 <head>
@@ -161,12 +161,12 @@ static string GetGatewayDemoHtml()
 <body>
 	<h1>Meerkatplace Demo</h1>
 
-	<h2>Docs Pages</h2>
+	<h2>Service Swagger UIs</h2>
 	<ul>
-		<li><a href="http://localhost:5001/docs" target="_blank" rel="noopener">User docs</a></li>
-		<li><a href="http://localhost:5002/docs" target="_blank" rel="noopener">Listing docs</a></li>
-		<li><a href="http://localhost:5003/docs" target="_blank" rel="noopener">Order docs</a></li>
-		<li><a href="http://localhost:5004/docs" target="_blank" rel="noopener">Payment docs</a></li>
+		<li><a href="/docs/user/" target="_blank" rel="noopener">User Swagger UI</a></li>
+		<li><a href="/docs/listing/" target="_blank" rel="noopener">Listing Swagger UI</a></li>
+		<li><a href="/docs/order/" target="_blank" rel="noopener">Order Swagger UI</a></li>
+		<li><a href="/docs/payment/" target="_blank" rel="noopener">Payment Swagger UI</a></li>
 	</ul>
 
 	<h2>Quick Flow</h2>

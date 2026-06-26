@@ -19,6 +19,7 @@ JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
 var builder = WebApplication.CreateBuilder(args);
 var enableSwagger = builder.Configuration.GetValue<bool>("Features:EnableSwagger");
+var swaggerEndpoint = builder.Configuration["Swagger:Endpoint"] ?? "/swagger/v1/swagger.json";
 builder.Services.AddOpenApi();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -125,7 +126,7 @@ if (app.Environment.IsDevelopment() || enableSwagger)
     app.UseSwaggerUI(options =>
     {
         options.RoutePrefix = "docs";
-        options.SwaggerEndpoint("/swagger/v1/swagger.json", "Order Service API v1");
+        options.SwaggerEndpoint(swaggerEndpoint, "Order Service API v1");
     });
 }
 
